@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!--
+    ATC Simulator – first development stage
+    This HTML document provides the skeleton for a web‑based air traffic control
+    simulation. It includes a radar canvas, a transmission log with a typewriter
+    effect, a scoreboard, and a command panel that supports both typed and
+    spoken commands. The structure and classes defined here mirror the game
+    design guidelines for a realistic radar display and communication console
+    found in professional ATC simulators【807708321175031†L41-L69】. Voice
+    recognition is implemented via the Web Speech API but can be toggled off if
+    unsupported【802175147168733†L272-L291】.
+  -->
+  <title>ATC Simulator</title>
+  <!-- Import radar‑inspired fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&family=Roboto+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>ATC Simulator</h1>
+  </header>
+  <main>
+    <!-- Radar display -->
+    <div id="radar-container">
+      <canvas id="radar" width="800" height="600"></canvas>
+    </div>
+    <!-- Sidebar with log, commands and scores -->
+    <div id="sidebar">
+      <section id="airport-section">
+        <label for="airportSelect">Aeroporto:</label>
+        <select id="airportSelect"></select>
+      </section>
+      <section id="scoreboard">
+        <h2>Scoreboard</h2>
+        <p>Score: <span id="score">0</span></p>
+        <p>Level: <span id="level">1</span></p>
+      </section>
+      <section id="log">
+        <h2>Transmission Log</h2>
+        <div id="log-messages"></div>
+      </section>
+      <section id="commands">
+        <h2>Commands</h2>
+        <input
+          type="text"
+          id="commandInput"
+          placeholder="Enter command or use voice"
+          autocomplete="off"
+        />
+        <div class="buttons">
+          <button id="sendCommand">Send</button>
+          <button id="voiceCommand">🎤 Voice</button>
+        </div>
+        <div id="help">
+          <p>Examples:</p>
+          <ul>
+            <li>H332 TL 220 250</li>
+            <li>M101 CL 12000</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer>
+    <p>First stage demo. Designed for expansion.</p>
+  </footer>
+  <script src="script.js"></script>
+</body>
+</html>

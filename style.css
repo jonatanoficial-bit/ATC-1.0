@@ -1,0 +1,155 @@
+/*
+  ATC Simulator Stylesheet
+  This stylesheet defines a dark, radar‑inspired aesthetic for the air traffic
+  control simulator. Colors and layouts are chosen to resemble professional
+  radar displays【807708321175031†L41-L69】 while remaining simple and clean for
+  the first development stage.
+*/
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Roboto Mono', monospace;
+  /* Apply a cinematic background image with a dark overlay */
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8)),
+    url('assets/bg_runway.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  color: #dcdcdc;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  text-align: center;
+  padding: 1rem;
+  background-color: #051622;
+  color: #00ff99;
+  border-bottom: 1px solid #1f3a5a;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+#radar-container {
+  flex: 3;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #051622;
+}
+
+#radar {
+  background: radial-gradient(circle at center, #051622 30%, #021017 70%);
+  border: 2px solid #00ff99;
+  border-radius: 4px;
+}
+
+#sidebar {
+  flex: 1;
+  background-color: #051622;
+  border-left: 1px solid #1f3a5a;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+#scoreboard h2,
+#log h2,
+#commands h2 {
+  font-family: 'Orbitron', sans-serif;
+  color: #00ff99;
+  margin-bottom: 0.5rem;
+}
+
+#log-messages {
+  height: 200px;
+  overflow-y: auto;
+  background-color: #021017;
+  border: 1px solid #1f3a5a;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+#log-messages p {
+  margin-bottom: 0.3rem;
+}
+
+#commandInput {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-color: #021017;
+  border: 1px solid #1f3a5a;
+  color: #ffffff;
+  border-radius: 3px;
+}
+
+.buttons button {
+  padding: 0.6rem 1.2rem;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-image: linear-gradient(45deg, #6a11cb, #2575fc);
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.buttons button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Style the airport selector */
+#airport-section {
+  margin-bottom: 1rem;
+}
+
+#airport-section label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-family: 'Orbitron', sans-serif;
+  color: #00ff99;
+}
+
+#airportSelect {
+  width: 100%;
+  padding: 0.4rem;
+  background-color: #021017;
+  border: 1px solid #1f3a5a;
+  color: #fff;
+  border-radius: 3px;
+  font-family: 'Roboto Mono', monospace;
+}
+
+#help {
+  font-size: 0.8rem;
+  color: #999999;
+  margin-top: 0.5rem;
+}
+
+footer {
+  text-align: center;
+  padding: 0.5rem;
+  background-color: #051622;
+  color: #556677;
+  font-size: 0.8rem;
+  border-top: 1px solid #1f3a5a;
+}

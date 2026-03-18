@@ -1,34 +1,41 @@
-# ATC Simulator (Stage 1)
+# Simulador ATC (Estágio 2)
 
-This project is a prototype of a realistic Air Traffic Control (ATC) simulator built with **HTML**, **CSS**, and **JavaScript**.  It implements the first stage of development for a browser‑based game where the player acts as an air traffic controller.  The design and features were inspired by professional ATC simulators and guidelines for radar displays【807708321175031†L41-L69】 and voice recognition procedures【802175147168733†L272-L317】.
+Este projeto é um protótipo de um simulador de controle de tráfego aéreo (ATC) construído com **HTML**, **CSS** e **JavaScript**.  Ele implementa a primeira etapa de desenvolvimento de um jogo de navegador no qual o jogador atua como controlador.  O design e os recursos foram inspirados em simuladores profissionais e nas diretrizes de telas de radar【807708321175031†L41-L69】 e procedimentos de reconhecimento de voz【802175147168733†L272-L317】.
 
-## Features
+## Funcionalidades
 
-* **Radar Display** — A dark, radar‑style canvas with concentric range rings and cross‑hairs.  Random aircraft spawn from the edges and fly across the screen.
-* **Aircraft Types** — Heavy (H), medium (M) and light (L) aircraft appear with different sizes and colours, labelled with callsigns and current altitude/speed【807708321175031†L41-L55】.
-* **Command System** — Enter commands via text or voice:
-  - `TL` / `TR` – turn left/right to a new heading and optional speed.
-  - `CL` / `DS` – climb or descend to a target altitude.
-  - `SPD` – change the aircraft’s speed.
-* **Voice Interaction** — Uses the Web Speech API to accept spoken commands and synthesise pilot/controller responses.  English phraseology and push‑to‑talk behaviour follow ATC voice‑recognition guidelines【802175147168733†L272-L317】.
-* **Transmission Log with Typewriter Effect** — Communications appear one character at a time to mimic radio transmissions.  Messages are spoken aloud using speech synthesis.
-* **Scoring and Levels** — Earn points for safe landings and proper command usage; lose points for collisions or aircraft leaving the sector.  Levels advance based on total score.
-* **Extensible Structure** — The code is modular and commented to allow future enhancements such as realistic physics, more complex commands, weather effects, and career progression.
+* **Tela de Radar** — Um canvas escuro com anéis concêntricos e linhas de referência.  Aeronaves aleatórias surgem pelas bordas e atravessam o setor.
+* **Tipos de Aeronaves** — Aeronaves pesadas (H), médias (M) e leves (L) aparecem com tamanhos e cores diferentes e são rotuladas com o callsign e altitude/velocidade atuais【807708321175031†L41-L55】.
+* **Pistas Numeradas** — Cada aeroporto tem orientação magnética própria e os números de pista são calculados automaticamente a partir desse rumo.  Os números são desenhados nas extremidades da pista de acordo com o método utilizado pelo DECEA【85487694131555†L123-L138】.
+* **Sistema de Comandos** — Digite comandos ou use voz:
+  - `TL` / `TR` – virar à esquerda/direita para um novo rumo e, opcionalmente, ajustar a velocidade.
+  - `CL` / `DS` – subir ou descer para uma altitude alvo.
+  - `SPD` – alterar a velocidade da aeronave.
+  - Botões rápidos para ações frequentes: APP (aproximação), ALT± (subir/descer 1&nbsp;000 pés), SPD± (alterar velocidade), TL/TR90 (virar 90°), Taxi (clearance de táxi) e Decolar (clearance de decolagem). Basta selecionar a aeronave clicando no radar e pressionar o botão desejado.
+* **Interface Bilingue** — A interface do jogo (botões, log e instruções) está em português, enquanto as falas do piloto e do controlador são sintetizadas em inglês seguindo a fraseologia padrão.
+* **Lobby Inicial Cinematográfico** — Ao abrir o site, o jogador vê um lobby com fundo cinematográfico e instruções básicas.  Clicar em **Iniciar** revela o radar e inicia o jogo.
+* **Seleção pelo Radar e Jogabilidade Melhorada** — Agora é possível clicar diretamente na aeronave no radar para selecioná‑la.  O callsign é automaticamente preenchido no campo de comando, e comandos rápidos ficam disponíveis para envio imediato.  Isso melhora a jogabilidade, oferecendo maior fluidez e aproximando‑se das operações de torre reais.
+* **Registro de Transmissões com Efeito de Máquina de Escrever** — As comunicações aparecem letra por letra para simular transmissões de rádio.  O áudio é reproduzido em inglês para treinar a audição do controlador.
+* **Pontuação e Níveis** — Ganhe pontos por pousos seguros e uso correto de comandos; perca pontos por colisões ou aeronaves que deixam o setor sem autorização.  O nível avança conforme a pontuação acumulada.
+* **Estrutura Extensível** — O código é modular e comentado para permitir melhorias futuras, como física mais realista, comandos adicionais, meteorologia e modo carreira.
 
-## Running Locally
+* **PWA Instalável no Android** — Um botão de instalação aparece quando o navegador detecta que o aplicativo pode ser instalado.  O serviço de worker e o manifesto permitem adicionar o simulador à tela inicial em dispositivos Android.
 
-1. Open `index.html` in a modern desktop browser (preferably Chrome or Edge).  Voice recognition requires a browser with support for the Web Speech API.
-2. Watch aircraft enter the sector on the radar.  Click in the command input and type commands such as `H332 TL 180 250` or `M101 CL 12000`.  Press **Send** or hit **Enter** to issue the command.
-3. Click the microphone button to issue a voice command.  Speak clearly following the command format; the system will fill the command input automatically.
+## Executando Localmente
 
-## Future Work
+1. Abra `index.html` em um navegador de desktop moderno (preferencialmente Chrome ou Edge).  O reconhecimento de voz requer suporte à API Web Speech.
+2. Na tela de lobby, leia as instruções e clique em **Iniciar**.  Isso exibe o radar e começa o jogo.
+3. Observe as aeronaves entrando no setor.  Clique no campo de comando e digite instruções como `H332 TL 180 250` ou `M101 CL 12000`.  Pressione **Enviar** ou `Enter` para transmiti-las.
+4. Clique no botão de microfone para falar um comando.  Fale claramente em inglês seguindo o formato; o sistema preencherá automaticamente o campo de texto.
+
+## Próximos Passos
 
 This is just the first step towards a professional ATC simulation.  Future iterations could include:
 
-* Realistic flight dynamics and separation minima.
-* Multiple sectors, runways and taxiways.
-* Weather and restricted airspace.
-* Career mode with pilot/controller voices in multiple languages.
-* User settings and persistent progress storage.
+* Dinâmica de voo realista e separação mínima de aeronaves.
+* Múltiplos setores, pistas paralelas e táxi.
+* Meteorologia e áreas restritas.
+* Modo carreira com vozes de piloto/controlador em vários idiomas.
+* Preferências de usuário e armazenamento de progresso.
 
 Contributions and suggestions are welcome!  Feel free to fork this project on GitHub and expand its capabilities.

@@ -29,6 +29,18 @@
   const levelEl = document.getElementById('level');
   const airportSelect = document.getElementById('airportSelect');
   const headerTitle = document.querySelector('header h1');
+  // Lobby overlay elements
+  const lobby = document.getElementById('lobby');
+  const startBtn = document.getElementById('startButton');
+  // Quick commands and install button
+  const quickCommandsEl = document.getElementById('quick-commands');
+  const installBtn = document.getElementById('installBtn');
+
+  // Selected aircraft reference
+  let selectedPlane = null;
+
+  // PWA installation prompt
+  let deferredPrompt;
 
   // Game state
   let planes = [];
@@ -39,36 +51,45 @@
   const spawnInterval = 8000; // milliseconds between new aircraft
   const maxPlanes = 5;
 
+  // Probability that a spawned aircraft will be on the ground (requesting taxi).  This
+  // introduces ground operations to the simulation.  Adjust value between 0 and 1.
+  const groundSpawnProbability = 0.2;
+
   // Airport database: one airport per Brazilian state plus the federal district.
   // Each object contains the state code, the airport’s common name and its IATA code.
   const airports = [
-    { state: 'AC', name: 'Rio Branco International', iata: 'RBR', runway: 90 },
+    // Each airport entry includes a heading representing runway orientation in degrees.
+    // The numbers displayed on either end of the runway line will be derived
+    // from this orientation (e.g., 90° → runways 09/27, 100° → 10/28).  When
+    // available, designations reflect the magnetic orientation reported by
+    // official sources【85487694131555†L123-L138】.
+    { state: 'AC', name: 'Rio Branco/Plácido de Castro', iata: 'RBR', runway: 60 },
     { state: 'AL', name: 'Maceió/Zumbi dos Palmares', iata: 'MCZ', runway: 110 },
     { state: 'AP', name: 'Macapá/Alberto Alcolumbre', iata: 'MCP', runway: 90 },
     { state: 'AM', name: 'Manaus/Eduardo Gomes', iata: 'MAO', runway: 100 },
-    { state: 'BA', name: 'Salvador Deputado Luís E. Magalhães', iata: 'SSA', runway: 90 },
-    { state: 'CE', name: 'Fortaleza Pinto Martins', iata: 'FOR', runway: 100 },
+    { state: 'BA', name: 'Salvador Dep. L. E. Magalhães', iata: 'SSA', runway: 90 },
+    { state: 'CE', name: 'Fortaleza/Pinto Martins', iata: 'FOR', runway: 100 },
     { state: 'DF', name: 'Brasília International', iata: 'BSB', runway: 110 },
-    { state: 'ES', name: 'Vitória Eurico de Aguiar Salles', iata: 'VIX', runway: 100 },
-    { state: 'GO', name: 'Goiânia Santa Genoveva', iata: 'GYN', runway: 110 },
-    { state: 'MA', name: 'São Luís Marechal Cunha Machado', iata: 'SLZ', runway: 90 },
-    { state: 'MT', name: 'Cuiabá Marechal Rondon', iata: 'CGB', runway: 90 },
+    { state: 'ES', name: 'Vitória/Eurico de Aguiar', iata: 'VIX', runway: 100 },
+    { state: 'GO', name: 'Goiânia/Santa Genoveva', iata: 'GYN', runway: 110 },
+    { state: 'MA', name: 'São Luís/Marechal Machado', iata: 'SLZ', runway: 90 },
+    { state: 'MT', name: 'Cuiabá/Marechal Rondon', iata: 'CGB', runway: 90 },
     { state: 'MS', name: 'Campo Grande International', iata: 'CGR', runway: 110 },
     { state: 'MG', name: 'Belo Horizonte/Confins', iata: 'CNF', runway: 90 },
-    { state: 'PA', name: 'Belém Val-de-Cans', iata: 'BEL', runway: 90 },
-    { state: 'PB', name: 'João Pessoa Castro Pinto', iata: 'JPA', runway: 100 },
-    { state: 'PR', name: 'Curitiba Afonso Pena', iata: 'CWB', runway: 110 },
+    { state: 'PA', name: 'Belém/Val‑de‑Cans', iata: 'BEL', runway: 80 },
+    { state: 'PB', name: 'João Pessoa/Castro Pinto', iata: 'JPA', runway: 100 },
+    { state: 'PR', name: 'Curitiba/Afonso Pena', iata: 'CWB', runway: 110 },
     { state: 'PE', name: 'Recife/Guararapes', iata: 'REC', runway: 90 },
-    { state: 'PI', name: 'Teresina Senador Petrônio Portella', iata: 'THE', runway: 110 },
+    { state: 'PI', name: 'Teresina/Petrônio Portella', iata: 'THE', runway: 110 },
     { state: 'RJ', name: 'Rio de Janeiro/Galeão', iata: 'GIG', runway: 100 },
-    { state: 'RN', name: 'Natal Augusto Severo', iata: 'NAT', runway: 100 },
-    { state: 'RS', name: 'Porto Alegre Salgado Filho', iata: 'POA', runway: 90 },
-    { state: 'RO', name: 'Porto Velho Belmonte', iata: 'PVH', runway: 100 },
+    { state: 'RN', name: 'Natal/Augusto Severo', iata: 'NAT', runway: 100 },
+    { state: 'RS', name: 'Porto Alegre/Salgado Filho', iata: 'POA', runway: 110 },
+    { state: 'RO', name: 'Porto Velho/Belmonte', iata: 'PVH', runway: 100 },
     { state: 'RR', name: 'Boa Vista International', iata: 'BVB', runway: 90 },
-    { state: 'SC', name: 'Florianópolis Hercílio Luz', iata: 'FLN', runway: 110 },
+    { state: 'SC', name: 'Florianópolis/Hercílio Luz', iata: 'FLN', runway: 100 },
     { state: 'SP', name: 'São Paulo/Guarulhos', iata: 'GRU', runway: 100 },
-    { state: 'SE', name: 'Aracaju Santa Maria', iata: 'AJU', runway: 100 },
-    { state: 'TO', name: 'Palmas Brigadeiro Lysias Rodrigues', iata: 'PMW', runway: 90 },
+    { state: 'SE', name: 'Aracaju/Santa Maria', iata: 'AJU', runway: 100 },
+    { state: 'TO', name: 'Palmas/B. Lysias Rodrigues', iata: 'PMW', runway: 90 },
   ];
 
   // Current airport selection; default to São Paulo/Guarulhos (GRU)
@@ -143,6 +164,15 @@
       this.color = this.getColor();
       this.size = this.getSize();
       this.active = true;
+      // Additional state for gameplay
+      // Status can be: 'air', 'ground', 'taxi', 'takeoff_wait', 'taking_off', 'approach_requested', 'approach'
+      this.status = 'air';
+      // Timestamp for next event (approach request or taxi progress)
+      this.nextEventTime = 0;
+      // Track if approach has been requested
+      this.approachRequested = false;
+      // For ground operations: when taxi started
+      this.taxiStartTime = 0;
     }
     getColor() {
       // Colors chosen per weight class: heavy = white, medium = yellow, light = green【807708321175031†L41-L55】
@@ -169,7 +199,10 @@
     }
     update(dt) {
       // Convert speed (knots) to pixels per second using an arbitrary scale.
-      const speedFactor = 0.05; // adjust to control plane speed on screen
+      // Convert knots to pixels per second.  Reduce this factor to slow
+      // aircraft movement on screen.  Lowering it improves playability
+      // because airplanes no longer rush across the radar too quickly.
+      const speedFactor = 0.03;
       const velocity = this.speed * speedFactor;
       const rad = (this.heading * Math.PI) / 180;
       this.x += Math.cos(rad) * velocity * dt;
@@ -206,6 +239,14 @@
         this.x,
         this.y + 14
       );
+      // If this plane is selected, draw a highlight circle around it
+      if (this === selectedPlane) {
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
   }
 
@@ -216,45 +257,72 @@
     // Generate 3‑digit number
     const number = Math.floor(Math.random() * 900) + 100;
     const callsign = `${type}${number}`;
-    // Random spawn on edges: choose one of four edges
-    const edge = Math.floor(Math.random() * 4);
-    let x, y, heading;
-    const margin = 20;
-    switch (edge) {
-      case 0: // top
-        x = Math.random() * radarWidth;
-        y = -margin;
-        heading = 90 + Math.random() * 180 - 90; // aim downward but slightly left/right
-        break;
-      case 1: // right
-        x = radarWidth + margin;
-        y = Math.random() * radarHeight;
-        heading = 180 + Math.random() * 180 - 90; // aim leftwards
-        break;
-      case 2: // bottom
-        x = Math.random() * radarWidth;
-        y = radarHeight + margin;
-        heading = -90 + Math.random() * 180 - 90; // aim upward
-        break;
-      case 3: // left
-      default:
-        x = -margin;
-        y = Math.random() * radarHeight;
-        heading = 0 + Math.random() * 180 - 90; // aim rightwards
-        break;
+    // Determine whether this plane spawns on the ground or in the air
+    const isGround = Math.random() < groundSpawnProbability;
+    let x, y, heading, speed, altitude;
+    if (isGround) {
+      // Ground spawn at runway threshold (centre).  Place slightly offset from centre
+      x = radarWidth / 2;
+      y = radarHeight / 2;
+      heading = currentAirport ? currentAirport.runway || 90 : 90;
+      speed = 0;
+      altitude = 0;
+    } else {
+      // Spawn in the air on the edges
+      const edge = Math.floor(Math.random() * 4);
+      const margin = 20;
+      switch (edge) {
+        case 0: // top
+          x = Math.random() * radarWidth;
+          y = -margin;
+          heading = 90 + Math.random() * 180 - 90; // aim downward but slightly left/right
+          break;
+        case 1: // right
+          x = radarWidth + margin;
+          y = Math.random() * radarHeight;
+          heading = 180 + Math.random() * 180 - 90; // aim leftwards
+          break;
+        case 2: // bottom
+          x = Math.random() * radarWidth;
+          y = radarHeight + margin;
+          heading = -90 + Math.random() * 180 - 90; // aim upward
+          break;
+        case 3: // left
+        default:
+          x = -margin;
+          y = Math.random() * radarHeight;
+          heading = 0 + Math.random() * 180 - 90; // aim rightwards
+          break;
+      }
+      // Generate a slower initial speed.  This range (150–250 knots) makes aircraft
+      // movement more manageable compared with the original 200–400 knots.
+      speed = 150 + Math.random() * 100; // 150–250 knots
+      altitude = 10000 + Math.random() * 10000; // 10,000–20,000 ft
     }
-    const speed = 200 + Math.random() * 200; // 200–400 knots
-    const altitude = 10000 + Math.random() * 10000; // 10,000–20,000 ft
     const plane = new Airplane(type, callsign, x, y, heading, speed, altitude);
+    // Set status and schedule events
+    if (isGround) {
+      plane.status = 'ground';
+      // Immediately queue taxi request from pilot
+      logMessage(
+        `${toPhonetic(callsign)} solicita táxi`,
+        'pilot',
+        true,
+        `${toPhonetic(callsign)} requesting taxi`
+      );
+    } else {
+      plane.status = 'air';
+      // Schedule approach request after a random delay (15–30 seconds)
+      const delay = 15000 + Math.random() * 15000;
+      plane.nextEventTime = performance.now() + delay;
+      // Announce aircraft entry via pilot message.  Display Portuguese text while
+      // speaking the English phrase.  E.g., "Hotel Three Three Two entrou no setor a 10 mil pés".
+      const level = Math.round(altitude / 1000);
+      const englishEntry = `${toPhonetic(callsign)} entering sector at ${level} thousand feet`;
+      const portugueseEntry = `${toPhonetic(callsign)} entrou no setor a ${level} mil pés`;
+      logMessage(portugueseEntry, 'pilot', true, englishEntry);
+    }
     planes.push(plane);
-    // Announce aircraft entry via pilot message
-    logMessage(
-      `${toPhonetic(callsign)} entering sector at ${Math.round(
-        altitude / 1000
-      )} thousand feet`,
-      'pilot',
-      true
-    );
   }
 
   function drawRadarGrid() {
@@ -301,6 +369,24 @@
       ctx.fillStyle = '#00aaff';
       ctx.textAlign = 'center';
       ctx.fillText(currentAirport.iata, cx, cy - 8);
+      // Compute runway numbers for each end (rounded heading / 10).  The
+      // orientation provided is a magnetic heading in degrees; dividing by
+      // 10 and rounding yields the runway designators【85487694131555†L123-L138】.
+      const heading1 = angleDeg % 360;
+      const heading2 = (angleDeg + 180) % 360;
+      const num1 = Math.round(heading1 / 10);
+      const num2Raw = Math.round(heading2 / 10);
+      const num2 = num2Raw > 36 ? num2Raw - 36 : num2Raw;
+      const pad = (n) => (n < 10 ? '0' + n : String(n));
+      const text1 = pad(num1);
+      const text2 = pad(num2);
+      ctx.font = '16px Orbitron';
+      ctx.fillStyle = '#00ffcc';
+      // Position the numbers slightly beyond the ends of the runway line
+      const offset = 20;
+      ctx.textAlign = 'center';
+      ctx.fillText(text1, x1 - Math.cos(angleRad) * offset, y1 - Math.sin(angleRad) * offset);
+      ctx.fillText(text2, x2 + Math.cos(angleRad) * offset, y2 + Math.sin(angleRad) * offset);
     }
   }
 
@@ -312,24 +398,67 @@
       spawnPlane();
       lastSpawn = currentTime;
     }
-    // Update planes
     const deltaSeconds = dt / 1000;
-    planes.forEach((plane) => plane.update(deltaSeconds));
+    // Process each plane's state before updating position
+    planes.forEach((plane) => {
+      // Ground and taxi operations
+      if (plane.status === 'taxi') {
+        // After 5 seconds of taxiing, move to takeoff wait
+        if (currentTime - plane.taxiStartTime > 5000) {
+          plane.status = 'takeoff_wait';
+          plane.speed = 0;
+          logMessage(
+            `${toPhonetic(plane.callsign)} pronto para decolagem`,
+            'pilot',
+            true,
+            `${toPhonetic(plane.callsign)} ready for takeoff`
+          );
+        }
+      } else if (plane.status === 'taking_off') {
+        // Accelerate and climb gradually
+        plane.speed += 50 * deltaSeconds; // increase 50 knots per second
+        plane.altitude += 500 * deltaSeconds; // climb rate 500 ft per second
+        if (plane.altitude >= 1000) {
+          plane.status = 'air';
+          // Schedule next approach request
+          const delay = 15000 + Math.random() * 15000;
+          plane.nextEventTime = performance.now() + delay;
+          logMessage(
+            `${toPhonetic(plane.callsign)} decolou`,
+            'pilot',
+            true,
+            `${toPhonetic(plane.callsign)} is airborne`
+          );
+        }
+      } else if (plane.status === 'air' || plane.status === 'approach') {
+        // Check if it's time to request approach.  Only ask once per flight
+        if (plane.status === 'air' && !plane.approachRequested && plane.nextEventTime > 0 && currentTime >= plane.nextEventTime) {
+          plane.approachRequested = true;
+          plane.status = 'approach_requested';
+          logMessage(
+            `${toPhonetic(plane.callsign)} solicita aproximação`,
+            'pilot',
+            true,
+            `${toPhonetic(plane.callsign)} requesting approach`
+          );
+        }
+      }
+      // Update position based on current speed and heading
+      plane.update(deltaSeconds);
+    });
     // Remove planes that leave the radar or reach the center
     planes = planes.filter((plane) => {
-      // If plane close to center, treat as landing success
+      // Landing: only count if aircraft is in the air (altitude > 0 and not taxiing)
       const dx = plane.x - radarWidth / 2;
       const dy = plane.y - radarHeight / 2;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const centerThreshold = 40;
-      if (distance < centerThreshold) {
+      if (distance < centerThreshold && plane.altitude > 0 && plane.status !== 'ground' && plane.status !== 'taxi' && plane.status !== 'takeoff_wait') {
         score += 10;
         updateScoreboard();
-        logMessage(
-          `${toPhonetic(plane.callsign)} landed successfully`,
-          'pilot',
-          true
-        );
+        const english = `${toPhonetic(plane.callsign)} landed successfully`;
+        const portuguese = `${toPhonetic(plane.callsign)} pousou com sucesso`;
+        logMessage(portuguese, 'pilot', true, english);
         return false;
       }
       // Remove if far outside bounds
@@ -343,34 +472,35 @@
         // Plane left sector without clearance
         score -= 5;
         updateScoreboard();
-        logMessage(
-          `${toPhonetic(plane.callsign)} left sector without clearance`,
-          'pilot',
-          true
-        );
+        const english = `${toPhonetic(plane.callsign)} left sector without clearance`;
+        const portuguese = `${toPhonetic(plane.callsign)} saiu do setor sem autorização`;
+        logMessage(portuguese, 'pilot', true, english);
         return false;
       }
       return true;
     });
-    // Collision detection: check each pair once
+    // Collision detection: check each pair once (only for aircraft in the air)
     for (let i = 0; i < planes.length; i++) {
       for (let j = i + 1; j < planes.length; j++) {
         const a = planes[i];
         const b = planes[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const separation = Math.sqrt(dx * dx + dy * dy);
-        const minSep = 20;
-        if (separation < minSep) {
-          score -= 10;
-          updateScoreboard();
-          logMessage(
-            `Collision alert between ${toPhonetic(a.callsign)} and ${toPhonetic(
+        // Only consider collision if both planes are airborne
+        if (a.altitude > 0 && b.altitude > 0) {
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const separation = Math.sqrt(dx * dx + dy * dy);
+          const minSep = 20;
+          if (separation < minSep) {
+            score -= 10;
+            updateScoreboard();
+            const english = `Collision alert between ${toPhonetic(a.callsign)} and ${toPhonetic(
               b.callsign
-            )}!`,
-            'system',
-            true
-          );
+            )}!`;
+            const portuguese = `Alerta de colisão entre ${toPhonetic(a.callsign)} e ${toPhonetic(
+              b.callsign
+            )}!`;
+            logMessage(portuguese, 'system', true, english);
+          }
         }
       }
     }
@@ -381,20 +511,26 @@
   }
 
   // Logging with typewriter effect
+  // Messages can optionally specify a separate speech text via the
+  // `speechOverride` field to allow Portuguese text to be displayed while
+  // English is spoken.  If `speak` is true, the speech synthesizer will
+  // pronounce the override; otherwise it reads the displayed text.
   const messageQueue = [];
   let isTyping = false;
-  function logMessage(text, sender = 'system', speak = false) {
-    messageQueue.push({ text, sender, speak });
+  function logMessage(text, sender = 'system', speak = false, speechOverride) {
+    messageQueue.push({ text, sender, speak, speechOverride });
     processQueue();
   }
   function processQueue() {
     if (isTyping || messageQueue.length === 0) return;
-    const { text, sender, speak } = messageQueue.shift();
+    const { text, sender, speak, speechOverride } = messageQueue.shift();
     isTyping = true;
     const p = document.createElement('p');
     p.classList.add('log-line');
+    // Add a class based on sender for potential styling
+    p.classList.add(`log-${sender}`);
     logContainer.appendChild(p);
-    // Scroll to bottom
+    // Ensure the container scrolls with new content
     logContainer.scrollTop = logContainer.scrollHeight;
     let index = 0;
     function typeNext() {
@@ -405,7 +541,10 @@
       } else {
         isTyping = false;
         // Speak message when complete
-        if (speak) speakMessage(text, sender);
+        if (speak) {
+          const utterance = speechOverride || text;
+          speakMessage(utterance, sender);
+        }
         processQueue();
       }
     }
@@ -450,11 +589,15 @@
   function updateScoreboard() {
     scoreEl.textContent = score;
     // Level could be based on total score
-    const newLevel = 1 + Math.floor(score / 50);
+    let newLevel = 1 + Math.floor(score / 50);
+    if (newLevel < 1) newLevel = 1;
     if (newLevel !== level) {
       level = newLevel;
       levelEl.textContent = level;
-      logMessage(`Level up! You are now level ${level}`, 'system', true);
+      // Notify level up in Portuguese and speak English
+      const english = `Level up! You are now level ${level}`;
+      const portuguese = `Você subiu de nível! Agora está no nível ${level}`;
+      logMessage(portuguese, 'system', true, english);
     }
   }
 
@@ -477,7 +620,7 @@
   // Update the page header with the selected airport
   function updateAirportHeader() {
     if (currentAirport) {
-      headerTitle.textContent = `ATC Simulator – ${currentAirport.name} (${currentAirport.iata})`;
+      headerTitle.textContent = `Simulador ATC – ${currentAirport.name} (${currentAirport.iata})`;
     }
   }
 
@@ -488,7 +631,10 @@
     level = 1;
     updateScoreboard();
     lastSpawn = performance.now();
-    logMessage(`Scenario changed to ${currentAirport.name}`, 'system', true);
+    // Scenario change message in Portuguese with English speech
+    const english = `Scenario changed to ${currentAirport.name}`;
+    const portuguese = `Cenário alterado para ${currentAirport.name}`;
+    logMessage(portuguese, 'system', true, english);
   }
 
   // Command parsing and execution
@@ -500,41 +646,53 @@
     // Split tokens by spaces
     const parts = raw.split(/\s+/);
     if (parts.length < 2) {
-      logMessage(`Invalid command format: ${raw}`, 'system', true);
+      const englishMsg = `Invalid command format: ${raw}`;
+      const portugueseMsg = `Formato de comando inválido: ${raw}`;
+      logMessage(portugueseMsg, 'system', true, englishMsg);
       return;
     }
     const callsign = parts[0].toUpperCase();
     const cmd = parts[1].toUpperCase();
     const targetPlane = planes.find((p) => p.callsign === callsign);
     if (!targetPlane) {
-      logMessage(`No aircraft with callsign ${callsign}`, 'system', true);
+      const englishMsg = `No aircraft with callsign ${callsign}`;
+      const portugueseMsg = `Nenhuma aeronave com o indicativo ${callsign}`;
+      logMessage(portugueseMsg, 'system', true, englishMsg);
       return;
     }
-    let phrase = `${toPhonetic(callsign)}, `;
+    // Compose separate English and Portuguese phrases
+    let phraseEn = `${toPhonetic(callsign)}, `;
+    let phrasePt = `${toPhonetic(callsign)}, `;
     switch (cmd) {
       case 'TL':
       case 'TR': {
         if (parts.length < 3) {
-          logMessage('Heading not specified', 'system', true);
+          const en = 'Heading not specified';
+          const pt = 'Rumo não especificado';
+          logMessage(pt, 'system', true, en);
           return;
         }
         const heading = parseFloat(parts[2]);
         if (isNaN(heading)) {
-          logMessage('Invalid heading', 'system', true);
+          const en = 'Invalid heading';
+          const pt = 'Rumo inválido';
+          logMessage(pt, 'system', true, en);
           return;
         }
-        // Adjust heading left or right relative to current heading
+        // Adjust heading absolute
         const newHeading = heading;
         targetPlane.heading = ((newHeading % 360) + 360) % 360;
-        phrase +=
-          (cmd === 'TL' ? 'turn left' : 'turn right') +
-          ` heading ${heading}`;
+        const dirEn = cmd === 'TL' ? 'turn left' : 'turn right';
+        const dirPt = cmd === 'TL' ? 'vire à esquerda' : 'vire à direita';
+        phraseEn += `${dirEn} heading ${heading}`;
+        phrasePt += `${dirPt} para rumo ${heading}`;
         // Optional speed specification
         if (parts.length >= 4) {
           const newSpeed = parseFloat(parts[3]);
           if (!isNaN(newSpeed)) {
             targetPlane.speed = newSpeed;
-            phrase += ` at ${newSpeed} knots`;
+            phraseEn += ` at ${newSpeed} knots`;
+            phrasePt += ` a ${newSpeed} nós`;
           }
         }
         break;
@@ -542,41 +700,180 @@
       case 'CL':
       case 'DS': {
         if (parts.length < 3) {
-          logMessage('Altitude not specified', 'system', true);
+          const en = 'Altitude not specified';
+          const pt = 'Altitude não especificada';
+          logMessage(pt, 'system', true, en);
           return;
         }
         const altitude = parseFloat(parts[2]);
         if (isNaN(altitude)) {
-          logMessage('Invalid altitude', 'system', true);
+          const en = 'Invalid altitude';
+          const pt = 'Altitude inválida';
+          logMessage(pt, 'system', true, en);
           return;
         }
         targetPlane.targetAltitude = altitude;
-        phrase +=
-          (cmd === 'CL' ? 'climb' : 'descend') + ` to ${altitude} feet`;
+        const dirEn = cmd === 'CL' ? 'climb' : 'descend';
+        const dirPt = cmd === 'CL' ? 'suba' : 'desça';
+        phraseEn += `${dirEn} to ${altitude} feet`;
+        phrasePt += `${dirPt} para ${altitude} pés`;
         break;
       }
       case 'SPD': {
         if (parts.length < 3) {
-          logMessage('Speed not specified', 'system', true);
+          const en = 'Speed not specified';
+          const pt = 'Velocidade não especificada';
+          logMessage(pt, 'system', true, en);
           return;
         }
         const speed = parseFloat(parts[2]);
         if (isNaN(speed)) {
-          logMessage('Invalid speed', 'system', true);
+          const en = 'Invalid speed';
+          const pt = 'Velocidade inválida';
+          logMessage(pt, 'system', true, en);
           return;
         }
         targetPlane.speed = speed;
-        phrase += `maintain ${speed} knots`;
+        phraseEn += `maintain ${speed} knots`;
+        phrasePt += `mantenha ${speed} nós`;
         break;
       }
-      default:
-        logMessage(`Unknown command: ${cmd}`, 'system', true);
+      default: {
+        const en = `Unknown command: ${cmd}`;
+        const pt = `Comando desconhecido: ${cmd}`;
+        logMessage(pt, 'system', true, en);
         return;
+      }
     }
-    // Controller issues command
-    logMessage(phrase, 'controller', true);
-    // Pilot acknowledges
-    logMessage(`Roger, ${toPhonetic(callsign)}. ${phrase}`, 'pilot', true);
+    // Controller issues command: display Portuguese and speak English
+    logMessage(phrasePt, 'controller', true, phraseEn);
+    // Pilot acknowledges: Portuguese with English voice
+    const pilotEn = `Roger, ${toPhonetic(callsign)}. ${phraseEn}`;
+    const pilotPt = `Entendido, ${toPhonetic(callsign)}. ${phrasePt}`;
+    logMessage(pilotPt, 'pilot', true, pilotEn);
+    score += 1;
+    updateScoreboard();
+  }
+
+  /**
+   * Send a quick command to the currently selected aircraft.  Quick commands
+   * provide one‑click actions for common instructions like approach (APP),
+   * altitude adjustments (ALT+/ALT‑), speed adjustments (SPD+/SPD‑), 90° turns
+   * (TL90/TR90), taxi clearance (TAXI) and takeoff clearance (TOF).  If no
+   * aircraft is selected, the user is prompted to select one by clicking
+   * on the radar.  Each command generates Portuguese text for the log while
+   * synthesising the equivalent English phrase for audio.  Points are
+   * awarded for issuing valid instructions.
+   */
+  function sendQuickCommand(action) {
+    if (!selectedPlane) {
+      logMessage(
+        'Selecione uma aeronave clicando no radar antes de enviar o comando.',
+        'system',
+        true,
+        'Select an aircraft on the radar before issuing a command.'
+      );
+      return;
+    }
+    const callsign = selectedPlane.callsign;
+    let phrasePt = `${toPhonetic(callsign)}, `;
+    let phraseEn = `${toPhonetic(callsign)}, `;
+    let valid = true;
+    switch (action) {
+      case 'APP': {
+        // Approach clearance: align with runway and descend to 3000 ft
+        const runwayHeading = currentAirport ? currentAirport.runway || 90 : 90;
+        selectedPlane.heading = runwayHeading;
+        selectedPlane.targetAltitude = 3000;
+        // ensure speed is not too low when beginning approach
+        selectedPlane.speed = Math.max(selectedPlane.speed, 150);
+        selectedPlane.status = 'approach';
+        phrasePt += 'autorizado para aproximação. Alinhe com a pista e desça para 3 mil pés';
+        phraseEn += 'cleared for approach. Align with the runway and descend to three thousand feet';
+        break;
+      }
+      case 'ALT+': {
+        const newAlt = selectedPlane.targetAltitude + 1000;
+        selectedPlane.targetAltitude = newAlt;
+        phrasePt += `suba para ${newAlt} pés`;
+        phraseEn += `climb to ${newAlt} feet`;
+        break;
+      }
+      case 'ALT-': {
+        let newAlt = selectedPlane.targetAltitude - 1000;
+        if (newAlt < 0) newAlt = 0;
+        selectedPlane.targetAltitude = newAlt;
+        phrasePt += `desça para ${newAlt} pés`;
+        phraseEn += `descend to ${newAlt} feet`;
+        break;
+      }
+      case 'SPD+': {
+        selectedPlane.speed += 20;
+        phrasePt += `aumente a velocidade para ${Math.round(selectedPlane.speed)} nós`;
+        phraseEn += `increase speed to ${Math.round(selectedPlane.speed)} knots`;
+        break;
+      }
+      case 'SPD-': {
+        selectedPlane.speed = Math.max(40, selectedPlane.speed - 20);
+        phrasePt += `reduza a velocidade para ${Math.round(selectedPlane.speed)} nós`;
+        phraseEn += `reduce speed to ${Math.round(selectedPlane.speed)} knots`;
+        break;
+      }
+      case 'TL90': {
+        selectedPlane.heading = ((selectedPlane.heading - 90) % 360 + 360) % 360;
+        phrasePt += 'vire 90 graus à esquerda';
+        phraseEn += 'turn left ninety degrees';
+        break;
+      }
+      case 'TR90': {
+        selectedPlane.heading = ((selectedPlane.heading + 90) % 360 + 360) % 360;
+        phrasePt += 'vire 90 graus à direita';
+        phraseEn += 'turn right ninety degrees';
+        break;
+      }
+      case 'TAXI': {
+        if (selectedPlane.status === 'ground') {
+          selectedPlane.status = 'taxi';
+          selectedPlane.taxiStartTime = performance.now();
+          selectedPlane.speed = 40; // taxi speed in knots
+          phrasePt += 'autorizado para táxi até a pista';
+          phraseEn += 'cleared to taxi to the runway';
+        } else {
+          valid = false;
+        }
+        break;
+      }
+      case 'TOF': {
+        if (selectedPlane.status === 'takeoff_wait') {
+          selectedPlane.status = 'taking_off';
+          selectedPlane.speed = Math.max(selectedPlane.speed, 100);
+          phrasePt += 'autorizado para decolagem';
+          phraseEn += 'cleared for takeoff';
+        } else {
+          valid = false;
+        }
+        break;
+      }
+      default: {
+        valid = false;
+        break;
+      }
+    }
+    if (!valid) {
+      logMessage(
+        'Comando rápido inválido para o estado da aeronave.',
+        'system',
+        true,
+        'Quick command not valid for the current aircraft state.'
+      );
+      return;
+    }
+    // Controller issues instruction
+    logMessage(phrasePt, 'controller', true, phraseEn);
+    // Pilot acknowledgement
+    const ackPt = `Entendido, ${toPhonetic(callsign)}. ${phrasePt}`;
+    const ackEn = `Roger, ${toPhonetic(callsign)}. ${phraseEn}`;
+    logMessage(ackPt, 'pilot', true, ackEn);
     score += 1;
     updateScoreboard();
   }
@@ -589,9 +886,57 @@
   voiceBtn.addEventListener('click', () => {
     if (recognition) {
       recognition.start();
-      logMessage('Listening for command…', 'system', false);
+      // Inform the user in Portuguese without speech
+      logMessage('Ouvindo comando…', 'system', false);
     } else {
-      logMessage('Voice recognition not supported in this browser', 'system', true);
+      const en = 'Voice recognition not supported in this browser';
+      const pt = 'Reconhecimento de voz não suportado neste navegador';
+      logMessage(pt, 'system', true, en);
+    }
+  });
+
+  // Handle clicks on quick command buttons
+  if (quickCommandsEl) {
+    quickCommandsEl.addEventListener('click', (e) => {
+      const target = e.target;
+      if (target.classList.contains('quick-btn')) {
+        const action = target.dataset.action;
+        if (action) {
+          sendQuickCommand(action);
+        }
+      }
+    });
+  }
+
+  // Allow selecting an aircraft by clicking on the radar.  When the user
+  // clicks near an aircraft symbol, that plane becomes highlighted and its
+  // callsign is pre‑filled in the command input for convenience.
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    let closest = null;
+    let minDist = Infinity;
+    planes.forEach((plane) => {
+      const dx = plane.x - x;
+      const dy = plane.y - y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist && dist < plane.size * 3) {
+        closest = plane;
+        minDist = dist;
+      }
+    });
+    if (closest) {
+      selectedPlane = closest;
+      // Pre‑fill the callsign in the command input for typing commands
+      commandInput.value = `${closest.callsign} `;
+      // Notify user about selection (Portuguese text, English speech)
+      logMessage(
+        `${toPhonetic(closest.callsign)} selecionado`,
+        'system',
+        true,
+        `${toPhonetic(closest.callsign)} selected`
+      );
     }
   });
 
@@ -603,13 +948,71 @@
     resetGame();
   });
 
-  // Kick off animation loop
+  // Kick off scoreboard and populate airports but do not start the simulation
+  // until the user clicks the start button in the lobby.  The lobby overlay
+  // hides the main interface; once dismissed, the main elements are revealed
+  // and the radar update loop begins.
   updateScoreboard();
-  // Populate airports after DOM and scoreboard are ready
   populateAirports();
-  requestAnimationFrame((time) => {
-    lastTime = time;
-    lastSpawn = time;
-    update(time);
+
+  // Register service worker for offline/PWA support only when served over HTTPS.
+  // Service workers are not available on the file:// protocol, so wrap in a
+  // protocol check to avoid runtime errors during local development.
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')) {
+    navigator.serviceWorker.register('sw.js').catch((err) => {
+      console.error('Service worker registration failed:', err);
+    });
+  }
+
+  // Listen for the beforeinstallprompt event to show the Android install button.
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) {
+      installBtn.style.display = 'inline-block';
+    }
   });
+  // Handle install button click
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      if (result && result.outcome === 'accepted') {
+        logMessage('Aplicativo instalado.', 'system', true, 'App installed.');
+      }
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    });
+  }
+
+  // Hide main content and header initially; they will be shown once the lobby is dismissed.
+  const mainEl = document.querySelector('main');
+  const footerEl = document.querySelector('footer');
+  // main and footer are visible only after start
+  mainEl.style.display = 'none';
+  footerEl.style.display = 'none';
+
+  // When the start button is clicked, hide the lobby, show the rest of the UI,
+  // update the header visibility, and kick off the animation loop.
+  /**
+   * Start the simulation.  This function is exposed globally so that the
+   * start button in the HTML can call it directly via onclick.  It hides
+   * the lobby overlay, reveals the main interface and header, and kicks off
+   * the animation loop for the radar.  If the game is restarted via a
+   * scenario change, this function can be invoked again to resume play.
+   */
+  window.startSimulation = function () {
+    lobby.style.display = 'none';
+    document.querySelector('header').style.display = 'block';
+    mainEl.style.display = 'flex';
+    footerEl.style.display = 'block';
+    // Start the animation loop
+    requestAnimationFrame((time) => {
+      lastTime = time;
+      lastSpawn = time;
+      update(time);
+    });
+  };
 })();

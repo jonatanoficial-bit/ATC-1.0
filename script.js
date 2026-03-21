@@ -51,6 +51,11 @@
   const spawnInterval = 8000; // milliseconds between new aircraft
   const maxPlanes = 5;
 
+  // Build information string inserted into the footer.  The date and time
+  // reflect when this version of the simulator was assembled.  Update this
+  // value whenever releasing a new build.
+  const buildInfo = 'v6 – 21/03/2026 16:19';
+
   // Probability that a spawned aircraft will be on the ground (requesting taxi).  This
   // introduces ground operations to the simulation.  Adjust value between 0 and 1.
   const groundSpawnProbability = 0.2;
@@ -90,6 +95,40 @@
     { state: 'SP', name: 'São Paulo/Guarulhos', iata: 'GRU', runway: 100 },
     { state: 'SE', name: 'Aracaju/Santa Maria', iata: 'AJU', runway: 100 },
     { state: 'TO', name: 'Palmas/B. Lysias Rodrigues', iata: 'PMW', runway: 90 },
+  ];
+
+  // -----------------------------------------------------------------------------
+  // Realistic aircraft data
+  //
+  // To make the simulation feel more authentic, we introduce a basic catalogue
+  // of aircraft models grouped by weight class (H = heavy, M = medium, L = light)
+  // and a list of major airlines with their ICAO prefixes.  When a new
+  // aircraft spawns, we select a model appropriate to its weight class and
+  // generate a callsign based on a real carrier if the aircraft is heavy or
+  // medium.  Light aircraft spawn as private aircraft with Brazilian or
+  // international registration prefixes.  This enhances immersion by replacing
+  // the simple `H123`/`M123`/`L123` callsigns with identifiers like TAM317 or
+  // PR‑ABC.
+
+  const aircraftModels = {
+    H: ['B747', 'B777', 'A380', 'A350', 'B787'],
+    M: ['A320', 'B737', 'A319', 'E195', 'E190', 'ATR72'],
+    L: ['C172', 'Citation', 'Learjet45', 'Piper28', 'CessnaMustang'],
+  };
+
+  const airlines = [
+    { prefix: 'TAM', name: 'LATAM', types: ['H', 'M'] },
+    { prefix: 'GLO', name: 'Gol', types: ['M'] },
+    { prefix: 'AZU', name: 'Azul', types: ['M'] },
+    { prefix: 'AVA', name: 'Avianca', types: ['M'] },
+    { prefix: 'UAE', name: 'Emirates', types: ['H', 'M'] },
+    { prefix: 'AFR', name: 'Air France', types: ['H', 'M'] },
+    { prefix: 'KLM', name: 'KLM', types: ['H', 'M'] },
+    { prefix: 'DLH', name: 'Lufthansa', types: ['H', 'M'] },
+    { prefix: 'AAL', name: 'American', types: ['H', 'M'] },
+    { prefix: 'DAL', name: 'Delta', types: ['H', 'M'] },
+    { prefix: 'UAL', name: 'United', types: ['H', 'M'] },
+    { prefix: 'BAW', name: 'British Airways', types: ['H', 'M'] },
   ];
 
   // Current airport selection; default to São Paulo/Guarulhos (GRU)
@@ -152,9 +191,11 @@
 
   // Airplane class representing a single aircraft
   class Airplane {
-    constructor(type, callsign, x, y, heading, speed, altitude) {
+    constructor(type, callsign, x, y, heading, speed, altitude, model = '', airline = '') {
       this.type = type; // 'H', 'M', 'L'
       this.callsign = callsign;
+      this.model = model;
+      this.airline = airline;
       this.x = x;
       this.y = y;
       this.heading = heading; // degrees
@@ -165,7 +206,7 @@
       this.size = this.getSize();
       this.active = true;
       // Additional state for gameplay
-      // Status can be: 'air', 'ground', 'taxi', 'takeoff_wait', 'taking_off', 'approach_requested', 'approach'
+      // Status can be: 'air', 'ground', 'taxi', 'takeoff_wait', 'taking_off', 'approach_requested', 'approach', 'taxi_in'
       this.status = 'air';
       // Timestamp for next event (approach request or taxi progress)
       this.nextEventTime = 0;
@@ -178,6 +219,10 @@
       // destination point on the radar (representing the terminal/gate).
       this.targetX = null;
       this.targetY = null;
+      // Trail of past positions for drawing track lines.  Each element is
+      // {x, y} representing a previous position.  We limit its length to
+      // maintain performance while providing a visual history.
+      this.trail = [];
     }
     getColor() {
       // Colors chosen per weight class: heavy = white, medium = yellow, light = green【807708321175031†L41-L55】
@@ -217,8 +262,31 @@
       if (Math.abs(altDelta) > 10) {
         this.altitude += Math.sign(altDelta) * 100 * dt; // change 100 ft per second
       }
+
+      // Record current position into the trail for rendering track lines.  Push
+      // after moving so that the most recent position is stored.  If the
+      // trail exceeds 30 points, remove the oldest to keep the array small.
+      this.trail.push({ x: this.x, y: this.y });
+      if (this.trail.length > 30) this.trail.shift();
     }
     draw(ctx) {
+      // Draw track lines showing the recent path of the aircraft.  Use a
+      // semi‑transparent stroke so the history is subtle.  We only draw
+      // when there are at least two points in the trail.
+      if (this.trail && this.trail.length > 1) {
+        ctx.save();
+        ctx.strokeStyle = this.color;
+        ctx.globalAlpha = 0.3;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(this.trail[0].x, this.trail[0].y);
+        for (let i = 1; i < this.trail.length; i++) {
+          ctx.lineTo(this.trail[i].x, this.trail[i].y);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+        ctx.restore();
+      }
       // Draw vector arrow representing aircraft
       ctx.save();
       ctx.translate(this.x, this.y);
@@ -236,15 +304,19 @@
       ctx.font = '12px Roboto Mono';
       ctx.fillStyle = this.color;
       ctx.textAlign = 'center';
-      ctx.fillText(this.callsign, this.x, this.y - 10);
+      // Callsign
+      ctx.fillText(this.callsign, this.x, this.y - 14);
+      // Model text in smaller font
+      ctx.font = '10px Roboto Mono';
+      ctx.fillText(this.model, this.x, this.y - 2);
+      // Altitude and speed
+      ctx.font = '12px Roboto Mono';
       ctx.fillText(
-        `${Math.round(this.altitude).toLocaleString()}ft @ ${Math.round(
-          this.speed
-        )}kt`,
+        `${Math.round(this.altitude).toLocaleString()}ft @ ${Math.round(this.speed)}kt`,
         this.x,
-        this.y + 14
+        this.y + 16
       );
-      // If this plane is selected, draw a highlight circle around it
+      // Highlight selected plane
       if (this === selectedPlane) {
         ctx.strokeStyle = '#00ffff';
         ctx.lineWidth = 2;
@@ -259,9 +331,30 @@
     if (planes.length >= maxPlanes) return;
     const types = ['H', 'M', 'L'];
     const type = types[Math.floor(Math.random() * types.length)];
-    // Generate 3‑digit number
-    const number = Math.floor(Math.random() * 900) + 100;
-    const callsign = `${type}${number}`;
+    // Select a model appropriate for the weight class
+    const modelList = aircraftModels[type] || ['Generic'];
+    const model = modelList[Math.floor(Math.random() * modelList.length)];
+    let airlineName = '';
+    let callsign = '';
+    // For heavy and medium aircraft, choose a real airline and generate a
+    // callsign using its ICAO prefix.  For light aircraft, generate a
+    // registration number typical of private aviation.
+    if (type === 'H' || type === 'M') {
+      const eligible = airlines.filter((a) => a.types.includes(type));
+      const selectedAir = eligible[Math.floor(Math.random() * eligible.length)];
+      airlineName = selectedAir.name;
+      const number = Math.floor(Math.random() * 900) + 100;
+      callsign = `${selectedAir.prefix}${number}`;
+    } else {
+      // Light aircraft: Brazilian/US registration prefix followed by three letters
+      const regPrefixes = ['PP', 'PR', 'PT', 'PU', 'PH', 'N'];
+      const prefix = regPrefixes[Math.floor(Math.random() * regPrefixes.length)];
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      let suffix = '';
+      for (let i = 0; i < 3; i++) suffix += letters[Math.floor(Math.random() * letters.length)];
+      callsign = `${prefix}${suffix}`;
+      airlineName = 'Private';
+    }
     // Determine whether this plane spawns on the ground or in the air
     const isGround = Math.random() < groundSpawnProbability;
     let x, y, heading, speed, altitude;
@@ -309,7 +402,7 @@
       speed = 150 + Math.random() * 100; // 150–250 knots
       altitude = 10000 + Math.random() * 10000; // 10,000–20,000 ft
     }
-    const plane = new Airplane(type, callsign, x, y, heading, speed, altitude);
+    const plane = new Airplane(type, callsign, x, y, heading, speed, altitude, model, airlineName);
     // Set status and schedule events
     if (isGround) {
       plane.status = 'ground';
@@ -356,6 +449,22 @@
     ctx.moveTo(0, radarHeight / 2);
     ctx.lineTo(radarWidth, radarHeight / 2);
     ctx.stroke();
+
+    // Draw additional radial lines to enhance realism.  Divide the circle
+    // into 8 segments (every 45°) emanating from the centre.  These lines
+    // provide bearing references similar to professional radar scopes.
+    const radialCount = 8;
+    ctx.strokeStyle = '#1f3a5a';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < radialCount; i++) {
+      const angle = (Math.PI * 2 * i) / radialCount;
+      const endX = radarWidth / 2 + Math.cos(angle) * (Math.min(radarWidth, radarHeight) / 2);
+      const endY = radarHeight / 2 + Math.sin(angle) * (Math.min(radarWidth, radarHeight) / 2);
+      ctx.beginPath();
+      ctx.moveTo(radarWidth / 2, radarHeight / 2);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
 
     // Draw runway line based on current airport orientation
     if (currentAirport) {
@@ -612,17 +721,36 @@
   }
 
   // Speech synthesis
+  //
+  // Assign distinct voices for the controller and pilots.  When voices load,
+  // we choose the first two English voices available.  The first is used for
+  // controller and system messages; the second for pilot messages.  If fewer
+  // than two English voices exist, both roles fallback to whatever is
+  // available.  Register an event handler to refresh voices when the list
+  // changes (as occurs asynchronously in some browsers).
+  let controllerVoice = null;
+  let pilotVoice = null;
+  function initVoices() {
+    if (!('speechSynthesis' in window)) return;
+    const allVoices = window.speechSynthesis.getVoices();
+    const english = allVoices.filter((v) => v.lang && v.lang.startsWith('en'));
+    controllerVoice = english[0] || allVoices[0] || null;
+    pilotVoice = english[1] || english[0] || allVoices[1] || allVoices[0] || null;
+  }
+  if ('speechSynthesis' in window) {
+    initVoices();
+    window.speechSynthesis.onvoiceschanged = initVoices;
+  }
   function speakMessage(text, sender) {
     if (!('speechSynthesis' in window)) return;
     const utter = new SpeechSynthesisUtterance(text);
-    // Choose voice: prefer English voices
-    const voices = window.speechSynthesis.getVoices();
-    for (const v of voices) {
-      if (v.lang.startsWith('en')) {
-        utter.voice = v;
-        break;
-      }
+    // Choose appropriate voice based on sender
+    if (sender === 'pilot' && pilotVoice) {
+      utter.voice = pilotVoice;
+    } else if ((sender === 'controller' || sender === 'system') && controllerVoice) {
+      utter.voice = controllerVoice;
     }
+    // Slightly different pitch to distinguish roles
     utter.pitch = sender === 'pilot' ? 1.0 : 0.9;
     utter.rate = 0.9;
     window.speechSynthesis.speak(utter);
@@ -675,6 +803,53 @@
     airportSelect.value = defaultIndex >= 0 ? defaultIndex : 0;
     currentAirport = airports[airportSelect.value];
     updateAirportHeader();
+  }
+
+  /**
+   * Translate internal aircraft status codes into human‑readable Portuguese.
+   */
+  function statusToPortuguese(status) {
+    switch (status) {
+      case 'ground':
+        return 'em solo';
+      case 'taxi':
+        return 'taxiando';
+      case 'takeoff_wait':
+        return 'aguardando decolagem';
+      case 'taking_off':
+        return 'decolando';
+      case 'air':
+        return 'em voo';
+      case 'approach_requested':
+        return 'solicitou aproximação';
+      case 'approach':
+        return 'em aproximação';
+      case 'taxi_in':
+        return 'taxiando ao gate';
+      default:
+        return status;
+    }
+  }
+
+  /**
+   * Update the selected aircraft information panel.  Displays callsign, model,
+   * altitude, speed and current status.  If no aircraft is selected, shows a
+   * placeholder message.
+   */
+  function updateSelectedInfo() {
+    const infoEl = document.getElementById('selected-info-content');
+    if (!infoEl) return;
+    if (!selectedPlane) {
+      infoEl.textContent = 'Nenhuma aeronave selecionada.';
+      return;
+    }
+    const alt = Math.round(selectedPlane.altitude);
+    const spd = Math.round(selectedPlane.speed);
+    const statusPt = statusToPortuguese(selectedPlane.status);
+    infoEl.innerHTML = `<strong>${selectedPlane.callsign}</strong> (${selectedPlane.model})<br>` +
+      `Alt: ${alt.toLocaleString()} ft<br>` +
+      `Vel: ${spd} kt<br>` +
+      `Estado: ${statusPt}`;
   }
 
   // Update the page header with the selected airport
@@ -891,6 +1066,58 @@
         phraseEn += 'turn right ninety degrees';
         break;
       }
+      case 'START': {
+        // Engine start clearance.  Only valid for aircraft on the ground that
+        // have not yet begun taxi.  Do not change aircraft state but
+        // acknowledge that engines may be started.
+        if (selectedPlane.status === 'ground') {
+          phrasePt += 'autorizado ligar motores. Aguarde pushback';
+          phraseEn += 'start engines approved. Stand by for pushback';
+        } else {
+          valid = false;
+        }
+        break;
+      }
+      case 'PUSH': {
+        // Pushback clearance.  Transition from ground to taxi.  Aircraft will
+        // taxi out towards the runway at a slow speed.
+        if (selectedPlane.status === 'ground') {
+          selectedPlane.status = 'taxi';
+          selectedPlane.taxiStartTime = performance.now();
+          selectedPlane.speed = 30;
+          phrasePt += 'autorizado pushback e táxi até a pista';
+          phraseEn += 'pushback and taxi to the runway approved';
+        } else {
+          valid = false;
+        }
+        break;
+      }
+      case 'LUW': {
+        // Line up and wait.  Aircraft must be taxiing towards the runway.
+        if (selectedPlane.status === 'taxi') {
+          selectedPlane.status = 'takeoff_wait';
+          selectedPlane.speed = 0;
+          phrasePt += 'autorizado alinhar e aguardar na pista';
+          phraseEn += 'cleared to line up and wait';
+        } else {
+          valid = false;
+        }
+        break;
+      }
+      case 'FINAL': {
+        // Final approach clearance.  Valid only for aircraft already on
+        // approach.  Sets a lower target altitude and instructs to continue
+        // descent.  We reuse the approach state rather than introducing a
+        // separate state.
+        if (selectedPlane.status === 'approach') {
+          selectedPlane.targetAltitude = 1000;
+          phrasePt += 'autorizado na final. Continue descendo para mil pés';
+          phraseEn += 'cleared final. Continue descending to one thousand feet';
+        } else {
+          valid = false;
+        }
+        break;
+      }
       case 'TAXI': {
         if (selectedPlane.status === 'ground') {
           selectedPlane.status = 'taxi';
@@ -990,6 +1217,8 @@
       selectedPlane = closest;
       // Pre‑fill the callsign in the command input for typing commands
       commandInput.value = `${closest.callsign} `;
+      // Update selected aircraft panel
+      updateSelectedInfo();
       // Notify user about selection (Portuguese text, English speech)
       logMessage(
         `${toPhonetic(closest.callsign)} selecionado`,
@@ -1050,6 +1279,13 @@
   // Hide main content and header initially; they will be shown once the lobby is dismissed.
   const mainEl = document.querySelector('main');
   const footerEl = document.querySelector('footer');
+  // Set the build/version information in the footer.  This makes the
+  // version and timestamp visible to the player without requiring code
+  // changes in the HTML.
+  const buildEl = document.getElementById('build-info');
+  if (buildEl) {
+    buildEl.textContent = `Build ${buildInfo}`;
+  }
   // main and footer are visible only after start
   mainEl.style.display = 'none';
   footerEl.style.display = 'none';

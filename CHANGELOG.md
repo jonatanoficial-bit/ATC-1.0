@@ -24,3 +24,13 @@ Todas as versões são identificadas pela data e hora no nome do arquivo ZIP (ex
 * Pontuação ao pousar e pontuação adicional ao chegar ao gate.
 * Ajustes de spawn: aeronaves no solo surgem perto do terminal, não mais no centro da pista.
 * Ajustes visuais e de texto no README para refletir as novidades.
+
+## v4 – 21/03/2026 (Fase 4)
+
+* **Modelos e companhias reais**: cada aeronave possui agora um modelo (B747, B737, A320, A350, Citation, etc.) e pertence a uma companhia aérea real (LATAM, Gol, Azul, Emirates, Lufthansa, American, Delta, United, etc.) ou, no caso dos aviões leves, recebe um prefixo de matrícula.  Os callsigns deixam de ser genéricos (`H123`/`M123`) e passam a utilizar o prefixo ICAO de cada empresa (TAM123, GLO456, AZU789...).
+* **Radar profissional**: adição de linhas radiais a cada 45° e rastro suavizado atrás de cada aeronave, aproximando o visual de radares reais.
+* **Novos comandos rápidos**: inclusão de botões **Start** (ligar motores), **Push** (pushback e táxi até a pista), **LUW** (alinhar e aguardar na pista) e **Final** (autorizar final).  Esses complementam o ciclo de saída e chegada.
+* **Vozes diferenciadas**: o sintetizador de fala usa vozes distintas para piloto e controlador, melhorando a imersão.
+* **Painel da aeronave selecionada**: um novo painel exibe callsign, modelo, altitude, velocidade e estado operacional da aeronave destacada.
+* **Informação de versão**: o rodapé do jogo agora mostra a versão e data/hora da build (por exemplo, `Build v6 – 21/03/2026 16:19`).
+* **Atualização do README**: documentação revisada para refletir todas as novas funcionalidades e preparar o terreno para fases futuras.

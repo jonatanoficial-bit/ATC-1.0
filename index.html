@@ -58,6 +58,12 @@
         <p>Pontuação: <span id="score">0</span></p>
         <p>Nível: <span id="level">1</span></p>
       </section>
+
+      <!-- Selected aircraft information -->
+      <section id="selected-info">
+        <h2>Aeronave Selecionada</h2>
+        <p id="selected-info-content">Nenhuma aeronave selecionada.</p>
+      </section>
       <section id="log">
         <h2>Registro de Transmissões</h2>
         <div id="log-messages"></div>
@@ -85,6 +91,10 @@
           </ul>
           <p>Botões rápidos:</p>
           <ul>
+            <li><strong>Start</strong> – Autoriza o acionamento de motores.</li>
+            <li><strong>Push</strong> – Autoriza pushback e táxi até a pista.</li>
+            <li><strong>LUW</strong> – Autoriza alinhar e aguardar na pista (line up and wait).</li>
+            <li><strong>Final</strong> – Autoriza a entrada na final e descida para 1&nbsp;000&nbsp;ft.</li>
             <li><strong>APP</strong> – Autoriza aproximação: alinha com a pista e desce para 3&nbsp;000&nbsp;ft.</li>
             <li><strong>ALT+</strong> / <strong>ALT‑</strong> – Sobe ou desce 1&nbsp;000&nbsp;ft.</li>
             <li><strong>SPD+</strong> / <strong>SPD‑</strong> – Aumenta ou reduz a velocidade em 20&nbsp;kt.</li>
@@ -96,6 +106,10 @@
 
         <!-- Quick command buttons for rapid actions -->
         <div id="quick-commands">
+          <button class="quick-btn" data-action="START">Start</button>
+          <button class="quick-btn" data-action="PUSH">Push</button>
+          <button class="quick-btn" data-action="LUW">LUW</button>
+          <button class="quick-btn" data-action="FINAL">Final</button>
           <button class="quick-btn" data-action="APP">APP</button>
           <button class="quick-btn" data-action="ALT+">ALT+</button>
           <button class="quick-btn" data-action="ALT-">ALT-</button>
@@ -110,7 +124,7 @@
     </div>
   </main>
   <footer>
-    <p>First stage demo. Designed for expansion.</p>
+    <p id="build-info">Versão em desenvolvimento</p>
   </footer>
   <script src="script.js"></script>
 </body>

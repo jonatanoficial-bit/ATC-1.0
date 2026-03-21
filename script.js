@@ -54,7 +54,7 @@
   // Build information string inserted into the footer.  The date and time
   // reflect when this version of the simulator was assembled.  Update this
   // value whenever releasing a new build.
-  const buildInfo = 'v6 – 21/03/2026 16:19';
+  const buildInfo = 'v7 – 21/03/2026 16:35';
 
   // Probability that a spawned aircraft will be on the ground (requesting taxi).  This
   // introduces ground operations to the simulation.  Adjust value between 0 and 1.
@@ -673,6 +673,11 @@
         }
       }
     }
+    // If the selected aircraft was removed, clear the panel. Otherwise keep it updated.
+    if (selectedPlane && !planes.includes(selectedPlane)) {
+      selectedPlane = null;
+    }
+    updateSelectedInfo();
     // Clear and redraw
     drawRadarGrid();
     planes.forEach((plane) => plane.draw(ctx));
@@ -1248,7 +1253,7 @@
   // Service workers are not available on the file:// protocol, so wrap in a
   // protocol check to avoid runtime errors during local development.
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')) {
-    navigator.serviceWorker.register('sw.js').catch((err) => {
+    navigator.serviceWorker.register('sw.js?v=2026-03-21-16-35-v7').catch((err) => {
       console.error('Service worker registration failed:', err);
     });
   }

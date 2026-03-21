@@ -173,6 +173,11 @@
       this.approachRequested = false;
       // For ground operations: when taxi started
       this.taxiStartTime = 0;
+      // Target coordinates for taxi‑in to gate after landing.  When an aircraft
+      // transitions to the `taxi_in` status, these values are set to a
+      // destination point on the radar (representing the terminal/gate).
+      this.targetX = null;
+      this.targetY = null;
     }
     getColor() {
       // Colors chosen per weight class: heavy = white, medium = yellow, light = green【807708321175031†L41-L55】
@@ -261,10 +266,15 @@
     const isGround = Math.random() < groundSpawnProbability;
     let x, y, heading, speed, altitude;
     if (isGround) {
-      // Ground spawn at runway threshold (centre).  Place slightly offset from centre
-      x = radarWidth / 2;
-      y = radarHeight / 2;
-      heading = currentAirport ? currentAirport.runway || 90 : 90;
+      // Ground spawn starts near the terminal/gate.  Place towards the bottom right
+      // of the radar.  Aircraft will taxi from the gate to the runway centre.
+      x = radarWidth * 0.85;
+      y = radarHeight * 0.85;
+      // Initial heading toward the runway centre (rotate from gate to center)
+      const dx = radarWidth / 2 - x;
+      const dy = radarHeight / 2 - y;
+      const angleRad = Math.atan2(dy, dx);
+      heading = (angleRad * 180) / Math.PI + 90;
       speed = 0;
       altitude = 0;
     } else {
@@ -401,7 +411,7 @@
     const deltaSeconds = dt / 1000;
     // Process each plane's state before updating position
     planes.forEach((plane) => {
-      // Ground and taxi operations
+      // Handle taxi out to runway
       if (plane.status === 'taxi') {
         // After 5 seconds of taxiing, move to takeoff wait
         if (currentTime - plane.taxiStartTime > 5000) {
@@ -415,12 +425,12 @@
           );
         }
       } else if (plane.status === 'taking_off') {
-        // Accelerate and climb gradually
+        // Accelerate and climb gradually during takeoff roll
         plane.speed += 50 * deltaSeconds; // increase 50 knots per second
         plane.altitude += 500 * deltaSeconds; // climb rate 500 ft per second
         if (plane.altitude >= 1000) {
           plane.status = 'air';
-          // Schedule next approach request
+          // Schedule next approach request after a random delay
           const delay = 15000 + Math.random() * 15000;
           plane.nextEventTime = performance.now() + delay;
           logMessage(
@@ -432,7 +442,12 @@
         }
       } else if (plane.status === 'air' || plane.status === 'approach') {
         // Check if it's time to request approach.  Only ask once per flight
-        if (plane.status === 'air' && !plane.approachRequested && plane.nextEventTime > 0 && currentTime >= plane.nextEventTime) {
+        if (
+          plane.status === 'air' &&
+          !plane.approachRequested &&
+          plane.nextEventTime > 0 &&
+          currentTime >= plane.nextEventTime
+        ) {
           plane.approachRequested = true;
           plane.status = 'approach_requested';
           logMessage(
@@ -442,24 +457,69 @@
             `${toPhonetic(plane.callsign)} requesting approach`
           );
         }
+      } else if (plane.status === 'taxi_in') {
+        // Taxiing in to the gate after landing.  Adjust heading towards target and
+        // maintain a slow taxi speed.  Once the aircraft reaches its target,
+        // removal and scoring is handled in the filter below.
+        if (plane.targetX !== null && plane.targetY !== null) {
+          const dx = plane.targetX - plane.x;
+          const dy = plane.targetY - plane.y;
+          const angleRad = Math.atan2(dy, dx);
+          plane.heading = (angleRad * 180) / Math.PI + 90;
+          // Keep altitude at zero
+          plane.altitude = 0;
+          // Maintain a taxi speed of ~25 knots
+          plane.speed = 25;
+        }
       }
       // Update position based on current speed and heading
       plane.update(deltaSeconds);
     });
     // Remove planes that leave the radar or reach the center
     planes = planes.filter((plane) => {
-      // Landing: only count if aircraft is in the air (altitude > 0 and not taxiing)
+      // If an aircraft is taxiing in to the gate, check if it has reached its destination
+      if (plane.status === 'taxi_in' && plane.targetX !== null && plane.targetY !== null) {
+        const gdx = plane.x - plane.targetX;
+        const gdy = plane.y - plane.targetY;
+        const gdist = Math.sqrt(gdx * gdx + gdy * gdy);
+        const gateThreshold = 20;
+        if (gdist < gateThreshold) {
+          // Aircraft has arrived at the gate.  Award a small bonus and remove it.
+          score += 5;
+          updateScoreboard();
+          const english = `${toPhonetic(plane.callsign)} reached the gate`;
+          const portuguese = `${toPhonetic(plane.callsign)} chegou ao gate`;
+          logMessage(portuguese, 'pilot', true, english);
+          return false;
+        }
+      }
+      // Landing detection: when an aircraft in the air reaches the center it is considered to have landed
       const dx = plane.x - radarWidth / 2;
       const dy = plane.y - radarHeight / 2;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const centerThreshold = 40;
-      if (distance < centerThreshold && plane.altitude > 0 && plane.status !== 'ground' && plane.status !== 'taxi' && plane.status !== 'takeoff_wait') {
+      if (
+        distance < centerThreshold &&
+        plane.altitude > 0 &&
+        plane.status !== 'ground' &&
+        plane.status !== 'taxi' &&
+        plane.status !== 'takeoff_wait' &&
+        plane.status !== 'taxi_in'
+      ) {
+        // Aircraft has touched down.  Transition to taxi‑in instead of removal.
         score += 10;
         updateScoreboard();
-        const english = `${toPhonetic(plane.callsign)} landed successfully`;
-        const portuguese = `${toPhonetic(plane.callsign)} pousou com sucesso`;
+        // Set altitude to zero and assign taxi‑in status
+        plane.altitude = 0;
+        plane.status = 'taxi_in';
+        // Determine a target gate position near the bottom right of the radar
+        plane.targetX = radarWidth * 0.85;
+        plane.targetY = radarHeight * 0.85;
+        // Announce landing and taxi to gate
+        const english = `${toPhonetic(plane.callsign)} landed successfully and taxiing to gate`;
+        const portuguese = `${toPhonetic(plane.callsign)} pousou com sucesso e taxiando para o gate`;
         logMessage(portuguese, 'pilot', true, english);
-        return false;
+        return true;
       }
       // Remove if far outside bounds
       const buffer = 50;
